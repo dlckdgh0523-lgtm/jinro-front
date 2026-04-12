@@ -65,7 +65,7 @@ type TeacherSignupPayload = {
 };
 
 const getApiBaseUrl = () => {
-  const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const rawBaseUrl = (import.meta.env as any).VITE_API_BASE_URL;
 
   if (!rawBaseUrl || !rawBaseUrl.trim()) {
     throw new Error("Missing VITE_API_BASE_URL configuration.");
@@ -117,8 +117,59 @@ const postJson = async <TData>(path: string, payload: unknown): Promise<TData> =
   return parsed.data;
 };
 
+const getJson = async <TData>(path: string): Promise<TData> => {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "include"
+  });
+
+  const parsed = await parseResponse<TData>(response);
+
+  if (!response.ok) {
+    if (parsed && !parsed.success) {
+      throw new Error(parsed.error.message);
+    }
+
+    throw new Error(getDefaultErrorMessage(response.status));
+  }
+
+  if (!parsed || !parsed.success) {
+    throw new Error("Unexpected response from server.");
+  }
+
+  return parsed.data;
+};
+
 export const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Unexpected error.";
+
+export type GoogleAuthUrlResponse = {
+  authUrl: string;
+};
+
+export const getGoogleAuthUrl = () =>
+  getJson<GoogleAuthUrlResponse>("/v1/auth/google");
+
+export const loginStudentWithGoogle = async () => {
+  try {
+    const response = await getGoogleAuthUrl();
+    window.location.href = response.authUrl;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const loginTeacherWithGoogle = async () => {
+  try {
+    const response = await getGoogleAuthUrl();
+    window.location.href = response.authUrl;
+  } catch (error) {
+    throw error;
+  }
+};
 
 export const loginStudent = (payload: { email: string; password: string }) =>
   postJson<AuthSessionResponse>("/v1/auth/student/login", payload);
