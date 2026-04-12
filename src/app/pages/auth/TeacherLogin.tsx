@@ -1,25 +1,49 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
+import { getErrorMessage, loginTeacher } from "../../utils/authApi";
 
 export function TeacherLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const canSubmit = email.trim().length > 0 && pw.length > 0 && !isSubmitting;
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/teacher/dashboard");
+
+    if (!canSubmit) {
+      return;
+    }
+
+    setSubmitError("");
+    setIsSubmitting(true);
+
+    try {
+      const session = await loginTeacher({
+        email: email.trim(),
+        password: pw
+      });
+
+      navigate(session.nextPath || "/teacher/dashboard");
+    } catch (error) {
+      setSubmitError(getErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <AuthLayout
-      title="교사 로그인"
-      subtitle="학급 관리 대시보드에 오신 것을 환영합니다"
+      title="Teacher Login"
+      subtitle="Sign in to manage your classroom dashboard."
     >
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className={labelClass}>이메일</label>
+          <label className={labelClass}>Email</label>
           <input
             type="email"
             className={inputClass}
@@ -29,24 +53,33 @@ export function TeacherLogin() {
           />
         </div>
         <div>
-          <label className={labelClass}>비밀번호</label>
+          <label className={labelClass}>Password</label>
           <input
             type="password"
             className={inputClass}
-            placeholder="비밀번호를 입력하세요"
+            placeholder="Enter your password"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
           />
-          <p className="text-xs text-muted-foreground mt-1.5">비밀번호를 잊으셨나요? <span className="text-primary cursor-pointer hover:underline">찾기</span></p>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Forgot your password? <span className="text-primary cursor-pointer hover:underline">Find account</span>
+          </p>
         </div>
 
-        <button type="submit" className={primaryBtn}>
-          로그인
+        {submitError && <p className="text-xs text-destructive">{submitError}</p>}
+
+        <button
+          type="submit"
+          className={primaryBtn}
+          disabled={!canSubmit}
+          style={{ opacity: canSubmit ? 1 : 0.5 }}
+        >
+          Log In
         </button>
 
         <div className="relative flex items-center gap-3 my-2">
           <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted-foreground">또는</span>
+          <span className="text-xs text-muted-foreground">or</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
@@ -57,20 +90,20 @@ export function TeacherLogin() {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
-          Google로 로그인
+          Continue with Google
         </button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground mt-6">
-        계정이 없으신가요?{" "}
+        Need an account?{" "}
         <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate("/signup/teacher")}>
-          교사 회원가입
+          Teacher sign up
         </span>
       </p>
       <p className="text-center text-sm text-muted-foreground mt-2">
-        학생이신가요?{" "}
+        Are you a student?{" "}
         <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate("/login/student")}>
-          학생 로그인
+          Student login
         </span>
       </p>
     </AuthLayout>

@@ -2,15 +2,21 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
 import { Search, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { getErrorMessage, signupTeacher } from "../../utils/authApi";
 
 const SAMPLE_SCHOOLS = [
-  "한빛고등학교", "서울중앙고등학교", "강남고등학교", "목동고등학교",
-  "노원고등학교", "성북고등학교", "마포고등학교", "동대문고등학교",
-  "양천고등학교", "은평고등학교", "광진고등학교", "송파고등학교",
+  "Seoul High School",
+  "Gangnam High School",
+  "Mapo High School",
+  "Han River High School",
+  "Jinro Academy",
+  "Namsan High School",
+  "Skyline High School",
+  "Central High School"
 ];
 
-const GRADES = ["1학년", "2학년", "3학년"];
-const CLASS_NUMS = Array.from({ length: 10 }, (_, i) => `${i + 1}반`);
+const GRADES = ["1st Grade", "2nd Grade", "3rd Grade"];
+const CLASS_NUMS = Array.from({ length: 10 }, (_, i) => `${i + 1} Class`);
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
@@ -23,15 +29,8 @@ const GoogleIcon = () => (
 
 export function TeacherSignup() {
   const navigate = useNavigate();
-
-  // ── Step state ──────────────────────────────────────────────
   const [step, setStep] = useState<1 | 2>(1);
-  const [isGoogleSignup, setIsGoogleSignup] = useState(false);
-
-  // Step 1: 약관 동의
   const [agreed, setAgreed] = useState(false);
-
-  // Step 2: 정보 입력 (학교 포함)
   const [schoolSearch, setSchoolSearch] = useState("");
   const [selectedSchool, setSelectedSchool] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -44,52 +43,80 @@ export function TeacherSignup() {
   const [grade, setGrade] = useState("");
   const [classNum, setClassNum] = useState("");
   const [subject, setSubject] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // School search filter
   const filtered = SAMPLE_SCHOOLS.filter(
-    (s) => s.includes(schoolSearch) && schoolSearch.length > 0
+    (school) => school.includes(schoolSearch) && schoolSearch.length > 0
   );
-  const selectSchool = (s: string) => {
-    setSelectedSchool(s);
-    setSchoolSearch(s);
+
+  const selectSchool = (school: string) => {
+    setSelectedSchool(school);
+    setSchoolSearch(school);
     setShowDropdown(false);
   };
 
-  // Validation
   const step1CanProceed = agreed;
-
   const passwordMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
   const step2CanSubmit =
     selectedSchool.length > 0 &&
     name.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length >= 8 &&
+    password === passwordConfirm &&
     grade.length > 0 &&
     classNum.length > 0 &&
-    (isGoogleSignup
-      ? true
-      : email.trim().length > 0 && password.length >= 8 && password === passwordConfirm);
+    !isSubmitting;
 
-  // ── Handlers ────────────────────────────────────────────────
   const handleGoogleSignup = () => {
-    setIsGoogleSignup(true);
-    setStep(2);
+    setSubmitError("Google signup is not available yet. Use email signup.");
   };
 
   const handleEmailNext = () => {
-    if (step1CanProceed) setStep(2);
+    if (step1CanProceed) {
+      setSubmitError("");
+      setStep(2);
+    }
   };
 
   const handleBack = () => {
     setStep(1);
-    setIsGoogleSignup(false);
+    setSubmitError("");
   };
 
-  // ── Render ──────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!step2CanSubmit) {
+      return;
+    }
+
+    setSubmitError("");
+    setIsSubmitting(true);
+
+    try {
+      const session = await signupTeacher({
+        schoolName: selectedSchool,
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        passwordConfirm,
+        grade,
+        classNum,
+        subject: subject.trim() || undefined
+      });
+
+      navigate(session.nextPath || "/teacher/dashboard");
+    } catch (error) {
+      setSubmitError(getErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <AuthLayout
-      title="교사 회원가입"
-      subtitle="학급을 관리하고 학생을 체계적으로 지원하세요"
+      title="Teacher Sign Up"
+      subtitle="Create your teacher account and manage your classroom."
     >
-      {/* Step Indicator */}
       <div className="flex items-center gap-2 mb-6">
         <div className="flex items-center gap-2">
           <div
@@ -102,7 +129,7 @@ export function TeacherSignup() {
             {step > 1 ? <CheckCircle2 className="w-4 h-4" /> : "1"}
           </div>
           <span className={`text-xs ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>
-            약관 동의
+            Terms
           </span>
         </div>
         <div className="flex-1 h-px bg-border mx-2" />
@@ -117,29 +144,28 @@ export function TeacherSignup() {
             2
           </div>
           <span className={`text-xs ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>
-            정보 입력
+            Details
           </span>
         </div>
       </div>
 
-      {/* ══ STEP 1: 약관 동의 ══════════════════════════════════════ */}
+      {submitError && <p className="text-xs text-destructive mb-4">{submitError}</p>}
+
       {step === 1 && (
         <div className="space-y-4">
-          {/* Google 가입 → 바로 Step 2로 이동 */}
-          <button className={secondaryBtn} onClick={handleGoogleSignup}>
+          <button className={secondaryBtn} type="button" onClick={handleGoogleSignup}>
             <GoogleIcon />
-            Google 계정으로 가입
+            Continue with Google
           </button>
 
           <div className="relative flex items-center gap-3">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">또는 이메일로 가입</span>
+            <span className="text-xs text-muted-foreground">or continue with email</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          {/* 이용약관 동의 */}
           <div className="p-4 bg-secondary/40 rounded-xl border border-border space-y-3">
-            <p className="text-sm text-foreground font-medium">서비스 이용 동의</p>
+            <p className="text-sm text-foreground font-medium">Agreement</p>
             <div className="flex items-start gap-2.5">
               <input
                 type="checkbox"
@@ -153,58 +179,56 @@ export function TeacherSignup() {
                 htmlFor="agree"
                 className="text-sm text-muted-foreground leading-snug cursor-pointer"
               >
+                I agree to the{" "}
                 <span
                   className="underline hover:opacity-80"
                   style={{ color: "var(--primary)" }}
-                  onClick={(e) => { e.preventDefault(); navigate("/terms"); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/terms");
+                  }}
                 >
-                  이용약관
-                </span>
-                과{" "}
+                  Terms of Service
+                </span>{" "}
+                and{" "}
                 <span
                   className="underline hover:opacity-80"
                   style={{ color: "var(--primary)" }}
-                  onClick={(e) => { e.preventDefault(); navigate("/privacy"); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/privacy");
+                  }}
                 >
-                  개인정보처리방침
+                  Privacy Policy
                 </span>
-                에 동의합니다. <span className="text-destructive">(필수)</span>
+                . <span className="text-destructive">(Required)</span>
               </label>
             </div>
           </div>
 
           <button
             className={primaryBtn}
+            type="button"
             onClick={handleEmailNext}
             disabled={!step1CanProceed}
             style={{ opacity: step1CanProceed ? 1 : 0.5 }}
           >
-            이메일로 계속하기 →
+            Continue with Email
           </button>
         </div>
       )}
 
-      {/* ══ STEP 2: 정보 입력 ══════════════════════════════════════ */}
       {step === 2 && (
         <div className="space-y-4">
-          {/* Google 가입 배지 */}
-          {isGoogleSignup && (
-            <div className="flex items-center gap-2 px-3.5 py-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-              <GoogleIcon />
-              <span className="text-sm text-foreground">Google 계정으로 가입 중</span>
-            </div>
-          )}
-
-          {/* 학교명 검색 (Step 1에서 이동) */}
           <div>
             <label className={labelClass}>
-              학교명 <span className="text-destructive">*</span>
+              School <span className="text-destructive">*</span>
             </label>
             <div className="relative">
               <input
                 type="text"
                 className={inputClass + " pr-10"}
-                placeholder="학교명을 검색하세요"
+                placeholder="Search school"
                 value={schoolSearch}
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
@@ -218,204 +242,199 @@ export function TeacherSignup() {
             </div>
             {showDropdown && filtered.length > 0 && (
               <div className="mt-1 bg-card border border-border rounded-xl shadow-md overflow-hidden z-10 relative">
-                {filtered.map((s) => (
+                {filtered.map((school) => (
                   <button
-                    key={s}
+                    key={school}
+                    type="button"
                     className="w-full text-left px-3.5 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
-                    onClick={() => selectSchool(s)}
+                    onClick={() => selectSchool(school)}
                   >
-                    {s}
+                    {school}
                   </button>
                 ))}
               </div>
             )}
             {selectedSchool ? (
               <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: "var(--primary)" }}>
-                <CheckCircle2 className="w-3 h-3" /> {selectedSchool} 선택됨
+                <CheckCircle2 className="w-3 h-3" /> {selectedSchool} selected
               </p>
             ) : (
               <p className="text-xs text-muted-foreground mt-1.5">
-                학교명을 검색하여 선택해 주세요.
+                Search and choose your school.
               </p>
             )}
           </div>
 
-          {/* 이름 */}
           <div>
             <label className={labelClass}>
-              이름 <span className="text-destructive">*</span>
+              Name <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
               className={inputClass}
-              placeholder="홍길동"
+              placeholder="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
-          {/* 이메일 + 비밀번호 (이메일 가입일 때만) */}
-          {!isGoogleSignup && (
-            <>
-              <div>
-                <label className={labelClass}>
-                  이메일 <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="email"
-                  className={inputClass}
-                  placeholder="example@school.ac.kr"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+          <div>
+            <label className={labelClass}>
+              Email <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="email"
+              className={inputClass}
+              placeholder="teacher@school.ac.kr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-              <div>
-                <label className={labelClass}>
-                  비밀번호 <span className="text-destructive">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className={inputClass + " pr-10"}
-                    placeholder="8자 이상 입력"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {password.length > 0 && password.length < 8 && (
-                  <p className="text-xs text-destructive mt-1">비밀번호는 8자 이상이어야 합니다.</p>
-                )}
-              </div>
+          <div>
+            <label className={labelClass}>
+              Password <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className={inputClass + " pr-10"}
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {password.length > 0 && password.length < 8 && (
+              <p className="text-xs text-destructive mt-1">Password must be at least 8 characters.</p>
+            )}
+          </div>
 
-              <div>
-                <label className={labelClass}>
-                  비밀번호 확인 <span className="text-destructive">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPasswordConfirm ? "text" : "password"}
-                    className={
-                      inputClass + " pr-10" + (passwordMismatch ? " border-destructive" : "")
-                    }
-                    placeholder="비밀번호를 다시 입력"
-                    value={passwordConfirm}
-                    onChange={(e) => setPasswordConfirm(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
-                  >
-                    {showPasswordConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {passwordMismatch && (
-                  <p className="text-xs text-destructive mt-1">비밀번호가 일치하지 않습니다.</p>
-                )}
-                {!passwordMismatch && passwordConfirm.length > 0 && password === passwordConfirm && (
-                  <p className="text-xs mt-1" style={{ color: "var(--primary)" }}>
-                    비밀번호가 일치합니다.
-                  </p>
-                )}
-              </div>
-            </>
-          )}
+          <div>
+            <label className={labelClass}>
+              Confirm Password <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showPasswordConfirm ? "text" : "password"}
+                className={inputClass + " pr-10" + (passwordMismatch ? " border-destructive" : "")}
+                placeholder="Re-enter your password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+              >
+                {showPasswordConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {passwordMismatch && (
+              <p className="text-xs text-destructive mt-1">Passwords do not match.</p>
+            )}
+            {!passwordMismatch && passwordConfirm.length > 0 && password === passwordConfirm && (
+              <p className="text-xs mt-1" style={{ color: "var(--primary)" }}>
+                Passwords match.
+              </p>
+            )}
+          </div>
 
-          {/* 담당 학년 + 반 */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>
-                담당 학년 <span className="text-destructive">*</span>
+                Grade <span className="text-destructive">*</span>
               </label>
               <select
                 className={inputClass + " cursor-pointer"}
                 value={grade}
                 onChange={(e) => setGrade(e.target.value)}
               >
-                <option value="">학년 선택</option>
-                {GRADES.map((g) => (
-                  <option key={g} value={g}>{g}</option>
+                <option value="">Select grade</option>
+                {GRADES.map((gradeOption) => (
+                  <option key={gradeOption} value={gradeOption}>
+                    {gradeOption}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
               <label className={labelClass}>
-                담당 반 <span className="text-destructive">*</span>
+                Class <span className="text-destructive">*</span>
               </label>
               <select
                 className={inputClass + " cursor-pointer"}
                 value={classNum}
                 onChange={(e) => setClassNum(e.target.value)}
               >
-                <option value="">반 선택</option>
-                {CLASS_NUMS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                <option value="">Select class</option>
+                {CLASS_NUMS.map((classOption) => (
+                  <option key={classOption} value={classOption}>
+                    {classOption}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* 담당 과목 (선택) */}
           <div>
             <label className={labelClass}>
-              담당 과목{" "}
-              <span className="text-muted-foreground/60 font-normal">(선택)</span>
+              Subject <span className="text-muted-foreground/60 font-normal">(Optional)</span>
             </label>
             <input
               type="text"
               className={inputClass}
-              placeholder="예: 수학, 과학"
+              placeholder="Example: Math, English"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
             />
           </div>
 
-          {/* 버튼 영역 */}
           <div className="flex gap-2 pt-1">
             <button
+              type="button"
               className="flex-1 h-11 rounded-xl border border-border bg-card text-foreground text-sm hover:bg-secondary transition-colors"
               onClick={handleBack}
             >
-              ← 이전
+              Back
             </button>
             <button
+              type="button"
               className="flex-[2] h-11 rounded-xl bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
-              onClick={() => navigate("/teacher/dashboard")}
+              onClick={handleSubmit}
               disabled={!step2CanSubmit}
               style={{ opacity: step2CanSubmit ? 1 : 0.5 }}
             >
-              교사 계정 만들기
+              Create Teacher Account
             </button>
           </div>
         </div>
       )}
 
       <p className="text-center text-sm text-muted-foreground mt-6">
-        이미 계정이 있으신가요?{" "}
+        Already have an account?{" "}
         <span
           className="cursor-pointer hover:underline"
           style={{ color: "var(--primary)" }}
           onClick={() => navigate("/login/teacher")}
         >
-          로그인
+          Log in
         </span>
       </p>
       <p className="text-center text-sm text-muted-foreground mt-2">
-        학생이신가요?{" "}
+        Are you a student?{" "}
         <span
           className="cursor-pointer hover:underline"
           style={{ color: "var(--primary)" }}
           onClick={() => navigate("/signup/student")}
         >
-          학생 회원가입
+          Student sign up
         </span>
       </p>
     </AuthLayout>
