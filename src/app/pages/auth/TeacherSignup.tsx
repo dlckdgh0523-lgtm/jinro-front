@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
 import { Search, Eye, EyeOff, CheckCircle2 } from "lucide-react";
-import { getErrorMessage, signupTeacher } from "../../utils/authApi";
+import { getErrorMessage, signupTeacher, signupTeacherWithGoogle } from "../../utils/authApi";
 
 const SAMPLE_SCHOOLS = [
   "Seoul High School",
@@ -68,8 +68,20 @@ export function TeacherSignup() {
     classNum.length > 0 &&
     !isSubmitting;
 
-  const handleGoogleSignup = () => {
-    setSubmitError("Google signup is not available yet. Use email signup.");
+  const handleGoogleSignup = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    setSubmitError("");
+    setIsSubmitting(true);
+
+    try {
+      await signupTeacherWithGoogle();
+    } catch (error) {
+      setSubmitError(getErrorMessage(error));
+      setIsSubmitting(false);
+    }
   };
 
   const handleEmailNext = () => {
@@ -153,7 +165,7 @@ export function TeacherSignup() {
 
       {step === 1 && (
         <div className="space-y-4">
-          <button className={secondaryBtn} type="button" onClick={handleGoogleSignup}>
+          <button className={secondaryBtn} type="button" onClick={handleGoogleSignup} disabled={isSubmitting}>
             <GoogleIcon />
             Continue with Google
           </button>

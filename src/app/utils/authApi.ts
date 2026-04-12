@@ -65,7 +65,7 @@ type TeacherSignupPayload = {
 };
 
 const getApiBaseUrl = () => {
-  const rawBaseUrl = (import.meta.env as any).VITE_API_BASE_URL;
+  const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   if (!rawBaseUrl || !rawBaseUrl.trim()) {
     throw new Error("Missing VITE_API_BASE_URL configuration.");
@@ -150,26 +150,25 @@ export type GoogleAuthUrlResponse = {
   authUrl: string;
 };
 
-export const getGoogleAuthUrl = () =>
-  getJson<GoogleAuthUrlResponse>("/v1/auth/google");
+export const getGoogleAuthUrl = () => getJson<GoogleAuthUrlResponse>("/v1/auth/google");
 
-export const loginStudentWithGoogle = async () => {
-  try {
-    const response = await getGoogleAuthUrl();
-    window.location.href = response.authUrl;
-  } catch (error) {
-    throw error;
+export const startGoogleAuth = async () => {
+  const response = await getGoogleAuthUrl();
+
+  if (!response.authUrl) {
+    throw new Error("No authUrl received from server.");
   }
+
+  window.location.assign(response.authUrl);
 };
 
-export const loginTeacherWithGoogle = async () => {
-  try {
-    const response = await getGoogleAuthUrl();
-    window.location.href = response.authUrl;
-  } catch (error) {
-    throw error;
-  }
-};
+export const loginStudentWithGoogle = startGoogleAuth;
+
+export const loginTeacherWithGoogle = startGoogleAuth;
+
+export const signupStudentWithGoogle = startGoogleAuth;
+
+export const signupTeacherWithGoogle = startGoogleAuth;
 
 export const loginStudent = (payload: { email: string; password: string }) =>
   postJson<AuthSessionResponse>("/v1/auth/student/login", payload);
