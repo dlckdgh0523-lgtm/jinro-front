@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
 import { Search, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import {
@@ -34,6 +34,7 @@ const GoogleIcon = () => (
 );
 
 export function TeacherSignup() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
   const [agreed, setAgreed] = useState(false);
@@ -89,6 +90,14 @@ export function TeacherSignup() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+
+    if (searchParams.has("code") || searchParams.has("error")) {
+      navigate(`/auth/google/callback${location.search}`, { replace: true });
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     const handlePageShow = () => {

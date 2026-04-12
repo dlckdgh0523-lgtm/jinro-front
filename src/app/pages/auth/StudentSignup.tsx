@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
 import { Info, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import {
@@ -14,6 +14,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STUDENT_SIGNUP_PATH = "/signup/student";
 
 export function StudentSignup() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -115,6 +116,14 @@ export function StudentSignup() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+
+    if (searchParams.has("code") || searchParams.has("error")) {
+      navigate(`/auth/google/callback${location.search}`, { replace: true });
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     const handlePageShow = () => {

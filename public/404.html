@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting...</title>
+    <script>
+      (function () {
+        var key = "jinro.spaRedirect";
+        var pathname =
+          window.location.pathname !== "/"
+            ? window.location.pathname.replace(/\/+$/, "") || "/"
+            : "/";
+        var target = pathname + window.location.search + window.location.hash;
+
+        try {
+          window.sessionStorage.setItem(key, target);
+        } catch (error) {}
+
+        window.location.replace("/");
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

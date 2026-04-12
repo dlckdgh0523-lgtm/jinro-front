@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
 import {
   consumeGoogleAuthError,
@@ -11,6 +11,7 @@ import {
 const STUDENT_LOGIN_PATH = "/login/student";
 
 export function StudentLogin() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -58,6 +59,14 @@ export function StudentLogin() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+
+    if (searchParams.has("code") || searchParams.has("error")) {
+      navigate(`/auth/google/callback${location.search}`, { replace: true });
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     const handlePageShow = () => {
