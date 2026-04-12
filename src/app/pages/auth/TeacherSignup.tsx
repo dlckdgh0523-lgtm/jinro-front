@@ -1,8 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
 import { Search, Eye, EyeOff, CheckCircle2 } from "lucide-react";
-import { getErrorMessage, signupTeacher, signupTeacherWithGoogle } from "../../utils/authApi";
+import {
+  consumeGoogleAuthError,
+  getErrorMessage,
+  signupTeacher,
+  signupTeacherWithGoogle
+} from "../../utils/authApi";
 
 const SAMPLE_SCHOOLS = [
   "Seoul High School",
@@ -17,6 +22,7 @@ const SAMPLE_SCHOOLS = [
 
 const GRADES = ["1st Grade", "2nd Grade", "3rd Grade"];
 const CLASS_NUMS = Array.from({ length: 10 }, (_, i) => `${i + 1} Class`);
+const TEACHER_SIGNUP_PATH = "/signup/teacher";
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
@@ -43,7 +49,7 @@ export function TeacherSignup() {
   const [grade, setGrade] = useState("");
   const [classNum, setClassNum] = useState("");
   const [subject, setSubject] = useState("");
-  const [submitError, setSubmitError] = useState("");
+  const [submitError, setSubmitError] = useState(() => consumeGoogleAuthError(TEACHER_SIGNUP_PATH));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filtered = SAMPLE_SCHOOLS.filter(
@@ -83,6 +89,18 @@ export function TeacherSignup() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const handlePageShow = () => {
+      setIsSubmitting(false);
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, []);
 
   const handleEmailNext = () => {
     if (step1CanProceed) {

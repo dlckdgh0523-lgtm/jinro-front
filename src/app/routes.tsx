@@ -8,6 +8,7 @@ import { StudentLogin } from "./pages/auth/StudentLogin";
 import { TeacherLogin } from "./pages/auth/TeacherLogin";
 import { StudentSignup } from "./pages/auth/StudentSignup";
 import { TeacherSignup } from "./pages/auth/TeacherSignup";
+import { GoogleAuthCallback } from "./pages/auth/GoogleAuthCallback";
 import { TermsOfService } from "./pages/legal/TermsOfService";
 import { PrivacyPolicy } from "./pages/legal/PrivacyPolicy";
 
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
   { path: "/login/teacher", Component: TeacherLogin },
   { path: "/signup/student", Component: StudentSignup },
   { path: "/signup/teacher", Component: TeacherSignup },
+  { path: "/auth/google/callback", Component: GoogleAuthCallback },
   { path: "/terms", Component: TermsOfService },
   { path: "/privacy", Component: PrivacyPolicy },
   { path: "/onboarding/1", Component: OnboardingStep1 },

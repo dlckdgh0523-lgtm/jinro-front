@@ -1,10 +1,17 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
 import { Info, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
-import { getErrorMessage, signupStudent, signupStudentWithGoogle, validateInviteCode } from "../../utils/authApi";
+import {
+  consumeGoogleAuthError,
+  getErrorMessage,
+  signupStudent,
+  signupStudentWithGoogle,
+  validateInviteCode
+} from "../../utils/authApi";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STUDENT_SIGNUP_PATH = "/signup/student";
 
 export function StudentSignup() {
   const navigate = useNavigate();
@@ -20,7 +27,7 @@ export function StudentSignup() {
   const [agreed, setAgreed] = useState(false);
   const [inviteCodeMessage, setInviteCodeMessage] = useState("");
   const [inviteCodeStatus, setInviteCodeStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
-  const [submitError, setSubmitError] = useState("");
+  const [submitError, setSubmitError] = useState(() => consumeGoogleAuthError(STUDENT_SIGNUP_PATH));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const emailInvalid = emailTouched && email.length > 0 && !emailRegex.test(email);
@@ -108,6 +115,18 @@ export function StudentSignup() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const handlePageShow = () => {
+      setIsSubmitting(false);
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, []);
 
   return (
     <AuthLayout

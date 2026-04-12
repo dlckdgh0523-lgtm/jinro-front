@@ -1,13 +1,20 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { AuthLayout, inputClass, labelClass, primaryBtn, secondaryBtn } from "./AuthLayout";
-import { getErrorMessage, loginStudent, loginStudentWithGoogle } from "../../utils/authApi";
+import {
+  consumeGoogleAuthError,
+  getErrorMessage,
+  loginStudent,
+  loginStudentWithGoogle
+} from "../../utils/authApi";
+
+const STUDENT_LOGIN_PATH = "/login/student";
 
 export function StudentLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
-  const [submitError, setSubmitError] = useState("");
+  const [submitError, setSubmitError] = useState(() => consumeGoogleAuthError(STUDENT_LOGIN_PATH));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = email.trim().length > 0 && pw.length > 0 && !isSubmitting;
@@ -51,6 +58,18 @@ export function StudentLogin() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const handlePageShow = () => {
+      setIsSubmitting(false);
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, []);
 
   return (
     <AuthLayout

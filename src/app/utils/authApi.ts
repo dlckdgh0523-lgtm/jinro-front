@@ -150,25 +150,213 @@ export type GoogleAuthUrlResponse = {
   authUrl: string;
 };
 
-export const getGoogleAuthUrl = () => getJson<GoogleAuthUrlResponse>("/v1/auth/google");
+type GoogleAuthIntent = "login" | "signup";
 
-export const startGoogleAuth = async () => {
-  const response = await getGoogleAuthUrl();
+type GoogleAuthRole = "student" | "teacher";
 
-  if (!response.authUrl) {
-    throw new Error("No authUrl received from server.");
-  }
-
-  window.location.assign(response.authUrl);
+type GoogleAuthContext = {
+  state: string;
+  sourcePath: string;
+  role: GoogleAuthRole;
+  intent: GoogleAuthIntent;
+  createdAt: number;
 };
 
-export const loginStudentWithGoogle = startGoogleAuth;
+type GoogleAuthErrorState = {
+  sourcePath: string;
+  message: string;
+  createdAt: number;
+};
 
-export const loginTeacherWithGoogle = startGoogleAuth;
+const GOOGLE_AUTH_CONTEXT_KEY = "jinro.googleAuthContext";
+const GOOGLE_AUTH_ERROR_KEY = "jinro.googleAuthError";
+const GOOGLE_AUTH_CALLBACK_PATH = "/auth/google/callback";
+const GOOGLE_AUTH_TTL_MS = 10 * 60 * 1000;
 
-export const signupStudentWithGoogle = startGoogleAuth;
+const canUseSessionStorage = () =>
+  typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
 
-export const signupTeacherWithGoogle = startGoogleAuth;
+const createGoogleAuthState = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `google-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
+const getFrontendGoogleCallbackUrl = () => {
+  if (typeof window === "undefined") {
+    throw new Error("Google OAuth can only be started in the browser.");
+  }
+
+  return `${window.location.origin}${GOOGLE_AUTH_CALLBACK_PATH}`;
+};
+
+const persistGoogleAuthContext = (context: GoogleAuthContext) => {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.setItem(GOOGLE_AUTH_CONTEXT_KEY, JSON.stringify(context));
+};
+
+const isExpiredGoogleAuthState = (createdAt: number) =>
+  Date.now() - createdAt > GOOGLE_AUTH_TTL_MS;
+
+export const clearGoogleAuthContext = () => {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(GOOGLE_AUTH_CONTEXT_KEY);
+};
+
+export const readGoogleAuthContext = (): GoogleAuthContext | null => {
+  if (!canUseSessionStorage()) {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(GOOGLE_AUTH_CONTEXT_KEY);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<GoogleAuthContext>;
+
+    if (
+      typeof parsed.state !== "string" ||
+      typeof parsed.sourcePath !== "string" ||
+      typeof parsed.role !== "string" ||
+      typeof parsed.intent !== "string" ||
+      typeof parsed.createdAt !== "number"
+    ) {
+      clearGoogleAuthContext();
+      return null;
+    }
+
+    if (isExpiredGoogleAuthState(parsed.createdAt)) {
+      clearGoogleAuthContext();
+      return null;
+    }
+
+    return parsed as GoogleAuthContext;
+  } catch {
+    clearGoogleAuthContext();
+    return null;
+  }
+};
+
+const persistGoogleAuthError = (payload: GoogleAuthErrorState) => {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.setItem(GOOGLE_AUTH_ERROR_KEY, JSON.stringify(payload));
+};
+
+export const consumeGoogleAuthError = (sourcePath: string) => {
+  if (!canUseSessionStorage()) {
+    return "";
+  }
+
+  const raw = window.sessionStorage.getItem(GOOGLE_AUTH_ERROR_KEY);
+
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<GoogleAuthErrorState>;
+
+    if (
+      typeof parsed.sourcePath !== "string" ||
+      typeof parsed.message !== "string" ||
+      typeof parsed.createdAt !== "number"
+    ) {
+      window.sessionStorage.removeItem(GOOGLE_AUTH_ERROR_KEY);
+      return "";
+    }
+
+    if (parsed.sourcePath !== sourcePath || isExpiredGoogleAuthState(parsed.createdAt)) {
+      if (parsed.sourcePath === sourcePath || isExpiredGoogleAuthState(parsed.createdAt)) {
+        window.sessionStorage.removeItem(GOOGLE_AUTH_ERROR_KEY);
+      }
+
+      return "";
+    }
+
+    window.sessionStorage.removeItem(GOOGLE_AUTH_ERROR_KEY);
+    return parsed.message;
+  } catch {
+    window.sessionStorage.removeItem(GOOGLE_AUTH_ERROR_KEY);
+    return "";
+  }
+};
+
+const buildGoogleAuthorizeUrl = (authUrl: string, state: string) => {
+  const url = new URL(authUrl);
+  url.searchParams.set("state", state);
+  url.searchParams.set("redirect_uri", getFrontendGoogleCallbackUrl());
+  return url.toString();
+};
+
+export const getGoogleAuthUrl = () => getJson<GoogleAuthUrlResponse>("/v1/auth/google");
+
+export const startGoogleAuth = async (input: {
+  sourcePath: string;
+  role: GoogleAuthRole;
+  intent: GoogleAuthIntent;
+}) => {
+  const context: GoogleAuthContext = {
+    state: createGoogleAuthState(),
+    sourcePath: input.sourcePath,
+    role: input.role,
+    intent: input.intent,
+    createdAt: Date.now()
+  };
+
+  persistGoogleAuthContext(context);
+
+  try {
+    const response = await getGoogleAuthUrl();
+
+    if (!response.authUrl) {
+      throw new Error("No authUrl received from server.");
+    }
+
+    window.location.assign(buildGoogleAuthorizeUrl(response.authUrl, context.state));
+  } catch (error) {
+    clearGoogleAuthContext();
+    throw error;
+  }
+};
+
+export const completeGoogleAuth = (payload: { code: string; state: string }) =>
+  getJson<AuthSessionResponse>(
+    `/v1/auth/google/callback?code=${encodeURIComponent(payload.code)}&state=${encodeURIComponent(payload.state)}`
+  );
+
+export const redirectGoogleAuthError = (sourcePath: string, message: string) => {
+  persistGoogleAuthError({
+    sourcePath,
+    message,
+    createdAt: Date.now()
+  });
+};
+
+export const loginStudentWithGoogle = () =>
+  startGoogleAuth({ sourcePath: "/login/student", role: "student", intent: "login" });
+
+export const loginTeacherWithGoogle = () =>
+  startGoogleAuth({ sourcePath: "/login/teacher", role: "teacher", intent: "login" });
+
+export const signupStudentWithGoogle = () =>
+  startGoogleAuth({ sourcePath: "/signup/student", role: "student", intent: "signup" });
+
+export const signupTeacherWithGoogle = () =>
+  startGoogleAuth({ sourcePath: "/signup/teacher", role: "teacher", intent: "signup" });
 
 export const loginStudent = (payload: { email: string; password: string }) =>
   postJson<AuthSessionResponse>("/v1/auth/student/login", payload);
