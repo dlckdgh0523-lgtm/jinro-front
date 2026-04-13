@@ -442,6 +442,13 @@ export function GoalSetting() {
                       ))}
                     </div>
                   </div>
+                  
+                  {fields.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 text-center py-4">
+                      학과 정보를 불러오는 중입니다...
+                    </p>
+                  )}
+                  
                   <div className="space-y-1.5 max-h-64 overflow-y-auto">
                     {depts.length > 0 ? (
                       depts.map((department) => (
@@ -457,11 +464,11 @@ export function GoalSetting() {
                           {department}
                         </button>
                       ))
-                    ) : (
+                    ) : fields.length > 0 ? (
                       <p className="text-xs text-amber-600 dark:text-amber-400 text-center py-4">
                         선택하신 대학의 학과 데이터가 없습니다. 다른 대학을 시도해주세요.
                       </p>
-                    )}
+                    ) : null}
                   </div>
                 </>
               ) : (

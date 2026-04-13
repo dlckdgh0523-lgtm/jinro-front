@@ -97,6 +97,15 @@ export function AIChat() {
     <div className="flex flex-col h-[calc(100vh-7rem)]">
       <Breadcrumb items={[{ label: "진로 / 입시" }, { label: "AI 진로 탐색" }]} />
 
+      {isStub && (
+        <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 mb-5">
+          <Brain className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+            <strong>준비 중</strong>: 현재 AI 진로 상담은 샘플 응답을 제공합니다. 실제 AI 기능은 준비 중입니다.
+          </p>
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col bg-card rounded-xl border border-border overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
