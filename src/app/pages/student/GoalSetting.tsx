@@ -14,11 +14,6 @@ type SavedGoal = {
   changeCount: number;
 };
 
-type GoalOptionsResponse = {
-  universities: string[];
-  departmentsByField: Record<string, string[]>;
-};
-
 export function GoalSetting() {
   const navigate = useNavigate();
   const [universities, setUniversities] = useState<string[]>([]);
@@ -47,20 +42,19 @@ export function GoalSetting() {
       setError("");
 
       try {
-        const [options, currentGoal] = await Promise.all([
-          appGet<GoalOptionsResponse>("/v1/goals/options"),
-          appGet<SavedGoal | null>("/v1/goals/current")
-        ]);
+        // 1. 대학 목록 조회 (기본 지역: 서울)
+        const universities = await appGet<string[]>("/v1/goals/universities?region=서울");
+        
+        // 2. 기존 목표 조회
+        const currentGoal = await appGet<SavedGoal | null>("/v1/goals/current");
 
         if (!active) {
           return;
         }
 
-        setUniversities(options.universities);
-        setDepartmentsByField(options.departmentsByField);
-
-        const defaultField = currentGoal?.field || Object.keys(options.departmentsByField)[0] || "";
-        setSelectedField(defaultField);
+        setUniversities(universities);
+        // 임시: 학과는 빈 상태로 초기화 (대학 선택 후 로드)
+        setDepartmentsByField({});
 
         if (currentGoal) {
           setPrevGoal(currentGoal);
@@ -69,6 +63,16 @@ export function GoalSetting() {
           setSelectedDept(currentGoal.department);
           setTargetGrade(currentGoal.targetGrade);
           setTargetScore(currentGoal.targetScore);
+          // 기존 대학의 학과 목록도 로드
+          try {
+            const depts = await appGet<string[]>(`/v1/goals/departments?universityName=${encodeURIComponent(currentGoal.university)}`);
+            if (active) {
+              setDepartmentsByField({ "일반": depts });
+              setSelectedField("일반");
+            }
+          } catch (error) {
+            console.error("기존 대학의 학과 로드 오류:", error);
+          }
         } else {
           setPrevGoal(null);
           setSelectedUniv("");
@@ -76,6 +80,7 @@ export function GoalSetting() {
           setSelectedDept("");
           setTargetGrade("");
           setTargetScore("");
+          setSelectedField("");
         }
       } catch (requestError) {
         if (active) {
@@ -100,6 +105,42 @@ export function GoalSetting() {
       setSelectedDept("");
     }
   }, [departmentsByField, selectedDept, selectedField]);
+
+  // 대학이 선택되면 학과 목록 로드
+  useEffect(() => {
+    if (!selectedUniv) {
+      setDepartmentsByField({});
+      setSelectedDept("");
+      setSelectedField("");
+      return;
+    }
+
+    let active = true;
+
+    const loadDepartments = async () => {
+      try {
+        const departments = await appGet<string[]>(`/v1/goals/departments?universityName=${encodeURIComponent(selectedUniv)}`);
+        
+        if (!active) return;
+        
+        // 학과를 "일반" 계열로 통합 (백엔드에서 계열 정보 없음을 가정)
+        setDepartmentsByField({ "일반": departments });
+        setSelectedField("일반");
+        setSelectedDept("");
+      } catch (error) {
+        console.error("학과 로드 오류:", error);
+        // 오류 시에도 UI가 깨지지 않도록 빈 상태로 설정
+        setDepartmentsByField({ "일반": [] });
+        setSelectedField("일반");
+      }
+    };
+
+    void loadDepartments();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedUniv]);
 
   const filteredUnivs = universities.filter(
     (university) =>
@@ -320,6 +361,12 @@ export function GoalSetting() {
                     ))}
                   </div>
                 )}
+                
+                {universities.length === 0 && !isLoading && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    현재 초기 운영 데이터 기준으로 서울 지역 대학만 제공됩니다.
+                  </p>
+                )}
               </div>
 
               {selectedUniv && (
@@ -374,39 +421,54 @@ export function GoalSetting() {
 
             <div className="bg-card rounded-xl border border-border p-5">
               <h3 className="text-foreground mb-4">목표 학과 설정</h3>
-              <div className="mb-3">
-                <label className="text-xs text-muted-foreground block mb-1.5">계열 선택</label>
-                <div className="flex flex-wrap gap-2">
-                  {fields.map((field) => (
-                    <button
-                      key={field}
-                      onClick={() => setSelectedField(field)}
-                      className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                        selectedField === field
-                          ? "border-primary bg-primary/10 text-primary font-medium"
-                          : "border-border text-muted-foreground hover:border-primary/40"
-                      }`}
-                    >
-                      {field}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                {depts.map((department) => (
-                  <button
-                    key={department}
-                    onClick={() => setSelectedDept(department)}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm border transition-colors ${
-                      selectedDept === department
-                        ? "border-primary bg-primary/10 text-primary font-medium"
-                        : "border-border text-foreground hover:bg-secondary/60"
-                    }`}
-                  >
-                    {department}
-                  </button>
-                ))}
-              </div>
+              
+              {selectedUniv ? (
+                <>
+                  <div className="mb-3">
+                    <label className="text-xs text-muted-foreground block mb-1.5">계열 선택</label>
+                    <div className="flex flex-wrap gap-2">
+                      {fields.map((field) => (
+                        <button
+                          key={field}
+                          onClick={() => setSelectedField(field)}
+                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                            selectedField === field
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "border-border text-muted-foreground hover:border-primary/40"
+                          }`}
+                        >
+                          {field}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {depts.length > 0 ? (
+                      depts.map((department) => (
+                        <button
+                          key={department}
+                          onClick={() => setSelectedDept(department)}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm border transition-colors ${
+                            selectedDept === department
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "border-border text-foreground hover:bg-secondary/60"
+                          }`}
+                        >
+                          {department}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 text-center py-4">
+                        선택하신 대학의 학과 데이터가 없습니다. 다른 대학을 시도해주세요.
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-8">
+                  왼쪽에서 목표 대학을 먼저 선택해주세요.
+                </p>
+              )}
             </div>
           </div>
 

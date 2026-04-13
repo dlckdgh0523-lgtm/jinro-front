@@ -269,7 +269,7 @@ export function TeacherSignup() {
               <input
                 type="text"
                 className={inputClass + " pr-10"}
-                placeholder="학교명을 검색하세요"
+                placeholder="학교명을 입력하세요 (예: 서울고등학교)"
                 value={schoolSearch}
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
@@ -281,6 +281,9 @@ export function TeacherSignup() {
               />
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              학교명이 목록에 없으면 정확하게 입력해주세요. (현재는 직접 입력 기반)
+            </p>
             {showDropdown && filtered.length > 0 && (
               <div className="mt-1 bg-card border border-border rounded-xl shadow-md overflow-hidden z-10 relative">
                 {filtered.map((school) => (
