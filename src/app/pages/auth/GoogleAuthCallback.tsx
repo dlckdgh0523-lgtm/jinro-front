@@ -5,6 +5,7 @@ import {
   clearGoogleAuthContext,
   completeGoogleAuth,
   getErrorMessage,
+  persistAuthSession,
   readGoogleAuthContext,
   redirectGoogleAuthError
 } from "../../utils/authApi";
@@ -42,7 +43,7 @@ export function GoogleAuthCallback() {
       const googleError = searchParams.get("error");
       if (googleError) {
         const description = decodeGoogleErrorDescription(searchParams.get("error_description"));
-        redirectWithError(description || "Google sign-in was cancelled.");
+        redirectWithError(description || "Google 로그인이 취소되었습니다.");
         return;
       }
 
@@ -50,23 +51,24 @@ export function GoogleAuthCallback() {
       const state = searchParams.get("state");
 
       if (!code || !state) {
-        redirectWithError("Google sign-in could not be completed.");
+        redirectWithError("Google 로그인을 완료하지 못했습니다.");
         return;
       }
 
       if (!storedContext) {
-        redirectWithError("Google sign-in session expired. Please try again.");
+        redirectWithError("Google 로그인 세션이 만료되었습니다. 다시 시도해 주세요.");
         return;
       }
 
       if (storedContext.state !== state) {
-        redirectWithError("Google sign-in state mismatch. Please try again.");
+        redirectWithError("Google 로그인 상태 확인에 실패했습니다. 다시 시도해 주세요.");
         return;
       }
 
       try {
         const session = await completeGoogleAuth({ code, state });
         clearGoogleAuthContext();
+        persistAuthSession(session);
 
         if (active) {
           navigate(session.nextPath || fallbackPath, { replace: true });
@@ -85,11 +87,11 @@ export function GoogleAuthCallback() {
 
   return (
     <AuthLayout
-      title="Continue with Google"
-      subtitle="Completing your sign in. Please wait a moment."
+      title="Google 로그인 진행 중"
+      subtitle="로그인을 완료하고 있습니다. 잠시만 기다려 주세요."
     >
       <div className="space-y-2 text-center">
-        <p className="text-sm text-muted-foreground">Signing you in with Google...</p>
+        <p className="text-sm text-muted-foreground">Google 계정으로 로그인하고 있습니다...</p>
       </div>
     </AuthLayout>
   );

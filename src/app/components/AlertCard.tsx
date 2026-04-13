@@ -2,7 +2,7 @@ import React from "react";
 import { Bell, AlertTriangle, CheckCircle, Info, BookOpen } from "lucide-react";
 
 export interface AlertItem {
-  id: number;
+  id: string | number;
   type: "danger" | "warning" | "info" | "success";
   category: string;
   title: string;
@@ -27,7 +27,7 @@ const dotMap = {
 
 interface AlertCardProps {
   alert: AlertItem;
-  onMarkRead?: (id: number) => void;
+  onMarkRead?: (id: string | number) => void;
 }
 
 export function AlertCard({ alert, onMarkRead }: AlertCardProps) {

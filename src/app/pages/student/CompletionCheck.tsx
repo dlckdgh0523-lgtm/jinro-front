@@ -17,7 +17,7 @@ function subjectStats(tasks: ReturnType<typeof useStudyPlan>["tasks"]) {
 
 export function CompletionCheck() {
   const navigate = useNavigate();
-  const { tasks, toggleTask } = useStudyPlan();
+  const { tasks, toggleTask, isLoading, error } = useStudyPlan();
 
   const completed = tasks.filter((t) => t.done);
   const incomplete = tasks.filter((t) => !t.done);
@@ -39,6 +39,8 @@ export function CompletionCheck() {
           </button>
         }
       />
+
+      {error && <p className="text-xs text-destructive mb-4">{error}</p>}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-5">
@@ -94,6 +96,11 @@ export function CompletionCheck() {
         )}
       </div>
 
+      {isLoading ? (
+        <div className="bg-card rounded-xl border border-border p-12 text-center text-sm text-muted-foreground">
+          학습 완료 현황을 불러오고 있습니다.
+        </div>
+      ) : (
       <div className="grid lg:grid-cols-2 gap-5">
         {/* Incomplete */}
         <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -155,6 +162,7 @@ export function CompletionCheck() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

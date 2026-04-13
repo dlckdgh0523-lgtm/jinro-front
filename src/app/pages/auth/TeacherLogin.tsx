@@ -5,7 +5,8 @@ import {
   consumeGoogleAuthError,
   getErrorMessage,
   loginTeacher,
-  loginTeacherWithGoogle
+  loginTeacherWithGoogle,
+  persistAuthSession
 } from "../../utils/authApi";
 
 const TEACHER_LOGIN_PATH = "/login/teacher";
@@ -36,6 +37,7 @@ export function TeacherLogin() {
         password: pw
       });
 
+      persistAuthSession(session);
       navigate(session.nextPath || "/teacher/dashboard");
     } catch (error) {
       setSubmitError(getErrorMessage(error));
@@ -82,12 +84,12 @@ export function TeacherLogin() {
 
   return (
     <AuthLayout
-      title="Teacher Login"
-      subtitle="Sign in to manage your classroom dashboard."
+      title="교사 로그인"
+      subtitle="교사 계정으로 로그인하고 학급 대시보드를 관리하세요."
     >
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className={labelClass}>Email</label>
+          <label className={labelClass}>이메일</label>
           <input
             type="email"
             className={inputClass}
@@ -97,16 +99,17 @@ export function TeacherLogin() {
           />
         </div>
         <div>
-          <label className={labelClass}>Password</label>
+          <label className={labelClass}>비밀번호</label>
           <input
             type="password"
             className={inputClass}
-            placeholder="Enter your password"
+            placeholder="비밀번호를 입력하세요"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
           />
           <p className="text-xs text-muted-foreground mt-1.5">
-            Forgot your password? <span className="text-primary cursor-pointer hover:underline">Find account</span>
+            비밀번호를 잊으셨나요?{" "}
+            <span className="text-primary cursor-pointer hover:underline">계정 찾기</span>
           </p>
         </div>
 
@@ -118,13 +121,13 @@ export function TeacherLogin() {
           disabled={!canSubmit}
           style={{ opacity: canSubmit ? 1 : 0.5 }}
         >
-          Log In
+          로그인
         </button>
       </form>
 
       <div className="relative flex items-center gap-3 my-2">
         <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground">or</span>
+        <span className="text-xs text-muted-foreground">또는</span>
         <div className="flex-1 h-px bg-border" />
       </div>
 
@@ -140,19 +143,19 @@ export function TeacherLogin() {
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
         </svg>
-        Continue with Google
+        Google로 계속하기
       </button>
 
       <p className="text-center text-sm text-muted-foreground mt-6">
-        Need an account?{" "}
+        계정이 없으신가요?{" "}
         <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate("/signup/teacher")}>
-          Teacher sign up
+          교사 회원가입
         </span>
       </p>
       <p className="text-center text-sm text-muted-foreground mt-2">
-        Are you a student?{" "}
+        학생이신가요?{" "}
         <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate("/login/student")}>
-          Student login
+          학생 로그인
         </span>
       </p>
     </AuthLayout>

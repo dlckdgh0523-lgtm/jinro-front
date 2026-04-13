@@ -7,7 +7,7 @@ import { Plus, CheckCircle, Circle } from "lucide-react";
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
 export function WeeklyPlan() {
-  const { tasks, toggleTask, addTask, removeTask } = useStudyPlan();
+  const { tasks, toggleTask, addTask, removeTask, isLoading, error } = useStudyPlan();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTask, setNewTask] = useState({
     subject: "",
@@ -42,6 +42,8 @@ export function WeeklyPlan() {
           </button>
         }
       />
+
+      {error && <p className="text-xs text-destructive mb-4">{error}</p>}
 
       {/* Progress */}
       <div className="bg-card rounded-xl border border-border p-5 mb-5">
@@ -84,6 +86,11 @@ export function WeeklyPlan() {
       </div>
 
       {/* Task list by day */}
+      {isLoading ? (
+        <div className="bg-card rounded-xl border border-border p-12 text-center text-sm text-muted-foreground">
+          주간 학습 계획을 불러오고 있습니다.
+        </div>
+      ) : (
       <div className="space-y-4">
         {DAYS.map((day) => {
           const dayTasks = tasks.filter((t) => t.day === day);
@@ -129,8 +136,9 @@ export function WeeklyPlan() {
           );
         })}
       </div>
+      )}
 
-      {tasks.length === 0 && (
+      {!isLoading && tasks.length === 0 && (
         <div className="bg-card rounded-xl border border-border p-12 text-center">
           <p className="text-muted-foreground text-sm">아직 학습 계획이 없어요. 추가해보세요!</p>
         </div>

@@ -35,6 +35,8 @@ export type AuthSessionResponse = {
   };
 };
 
+type StoredAuthSession = AuthSessionResponse;
+
 export type InviteValidationResponse = {
   valid: true;
   inviteCode: string;
@@ -64,17 +66,123 @@ type TeacherSignupPayload = {
   subject?: string;
 };
 
-const getApiBaseUrl = () => {
+const AUTH_SESSION_KEY = "jinro.authSession";
+
+export const getApiBaseUrl = () => {
   const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   if (!rawBaseUrl || !rawBaseUrl.trim()) {
-    throw new Error("Missing VITE_API_BASE_URL configuration.");
+    throw new Error("API 서버 주소가 설정되지 않았습니다.");
   }
 
   return rawBaseUrl.trim().replace(/\/+$/, "");
 };
 
-const getDefaultErrorMessage = (status: number) => `Request failed with status ${status}.`;
+const canUseSessionStorage = () =>
+  typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+
+export const persistAuthSession = (session: StoredAuthSession) => {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+};
+
+export const readAuthSession = (): StoredAuthSession | null => {
+  if (!canUseSessionStorage()) {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(AUTH_SESSION_KEY);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredAuthSession>;
+
+    if (
+      typeof parsed.accessToken !== "string" ||
+      typeof parsed.refreshToken !== "string" ||
+      typeof parsed.streamToken !== "string" ||
+      typeof parsed.nextPath !== "string" ||
+      !parsed.user ||
+      typeof parsed.user.id !== "string" ||
+      typeof parsed.user.role !== "string" ||
+      typeof parsed.user.email !== "string" ||
+      typeof parsed.user.name !== "string" ||
+      typeof parsed.user.schoolName !== "string"
+    ) {
+      window.sessionStorage.removeItem(AUTH_SESSION_KEY);
+      return null;
+    }
+
+    return parsed as StoredAuthSession;
+  } catch {
+    window.sessionStorage.removeItem(AUTH_SESSION_KEY);
+    return null;
+  }
+};
+
+export const updateAuthSession = (patch: Partial<StoredAuthSession>) => {
+  const current = readAuthSession();
+
+  if (!current) {
+    return;
+  }
+
+  persistAuthSession({
+    ...current,
+    ...patch,
+    user: {
+      ...current.user,
+      ...(patch.user ?? {})
+    }
+  });
+};
+
+export const clearAuthSession = () => {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(AUTH_SESSION_KEY);
+};
+
+const AUTH_MESSAGE_MAP: Record<string, string> = {
+  "Missing VITE_API_BASE_URL configuration.": "API 서버 주소가 설정되지 않았습니다.",
+  "Unexpected response from server.": "서버 응답을 확인하지 못했습니다.",
+  "Unexpected error.": "알 수 없는 오류가 발생했습니다.",
+  "Google OAuth can only be started in the browser.": "Google 로그인은 브라우저에서만 시작할 수 있습니다.",
+  "No authUrl received from server.": "Google 로그인 주소를 받아오지 못했습니다.",
+  "Google sign-in was cancelled.": "Google 로그인이 취소되었습니다.",
+  "Google sign-in could not be completed.": "Google 로그인을 완료하지 못했습니다.",
+  "Google sign-in session expired. Please try again.": "Google 로그인 세션이 만료되었습니다. 다시 시도해 주세요.",
+  "Google sign-in state mismatch. Please try again.": "Google 로그인 상태 확인에 실패했습니다. 다시 시도해 주세요.",
+  "Invalid credentials.": "이메일 또는 비밀번호가 올바르지 않습니다.",
+  "Inactive account.": "비활성화된 계정입니다.",
+  "Email is already registered.": "이미 가입된 이메일입니다.",
+  "Invite code not found.": "초대 코드를 찾을 수 없습니다.",
+  "Selected classroom already has an owner.": "선택한 반에는 이미 담임 선생님이 있습니다.",
+  "Google OAuth not configured.": "Google 로그인 설정이 완료되지 않았습니다.",
+  "Google OAuth token exchange failed.": "Google 로그인 인증을 완료하지 못했습니다.",
+  "Google ID token verification failed.": "Google 계정 정보를 확인하지 못했습니다.",
+  "Google user provisioning failed.": "Google 계정으로 회원 정보를 생성하지 못했습니다.",
+  "Google session creation failed.": "로그인 세션을 생성하지 못했습니다.",
+  "Failed to get ID token from Google.": "Google 인증 토큰을 받지 못했습니다.",
+  "Invalid ID token payload.": "Google 계정 정보를 확인하지 못했습니다.",
+  "User not found.": "사용자 정보를 찾을 수 없습니다.",
+  "Profile not found.": "프로필 정보를 찾을 수 없습니다.",
+  "Google sign-in is not available for this account.": "이 계정으로는 Google 로그인을 사용할 수 없습니다.",
+  "Unexpected server error.": "서버 오류가 발생했습니다.",
+  "Request validation failed.": "요청 값이 올바르지 않습니다."
+};
+
+const getDefaultErrorMessage = (status: number) => `요청 처리 중 오류가 발생했습니다. (HTTP ${status})`;
+
+const translateAuthMessage = (message: string) => AUTH_MESSAGE_MAP[message] ?? message;
 
 const parseResponse = async <TData>(response: Response): Promise<ApiResponse<TData> | null> => {
   const text = await response.text();
@@ -104,14 +212,14 @@ const postJson = async <TData>(path: string, payload: unknown): Promise<TData> =
 
   if (!response.ok) {
     if (parsed && !parsed.success) {
-      throw new Error(parsed.error.message);
+      throw new Error(translateAuthMessage(parsed.error.message));
     }
 
     throw new Error(getDefaultErrorMessage(response.status));
   }
 
   if (!parsed || !parsed.success) {
-    throw new Error("Unexpected response from server.");
+    throw new Error("서버 응답을 확인하지 못했습니다.");
   }
 
   return parsed.data;
@@ -130,21 +238,21 @@ const getJson = async <TData>(path: string): Promise<TData> => {
 
   if (!response.ok) {
     if (parsed && !parsed.success) {
-      throw new Error(parsed.error.message);
+      throw new Error(translateAuthMessage(parsed.error.message));
     }
 
     throw new Error(getDefaultErrorMessage(response.status));
   }
 
   if (!parsed || !parsed.success) {
-    throw new Error("Unexpected response from server.");
+    throw new Error("서버 응답을 확인하지 못했습니다.");
   }
 
   return parsed.data;
 };
 
 export const getErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : "Unexpected error.";
+  error instanceof Error ? translateAuthMessage(error.message) : "알 수 없는 오류가 발생했습니다.";
 
 export type GoogleAuthUrlResponse = {
   authUrl: string;
@@ -173,9 +281,6 @@ const GOOGLE_AUTH_ERROR_KEY = "jinro.googleAuthError";
 const GOOGLE_AUTH_CALLBACK_PATH = "/auth/google/callback";
 const GOOGLE_AUTH_TTL_MS = 10 * 60 * 1000;
 
-const canUseSessionStorage = () =>
-  typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
-
 const createGoogleAuthState = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -186,7 +291,7 @@ const createGoogleAuthState = () => {
 
 const getFrontendGoogleCallbackUrl = () => {
   if (typeof window === "undefined") {
-    throw new Error("Google OAuth can only be started in the browser.");
+    throw new Error("Google 로그인은 브라우저에서만 시작할 수 있습니다.");
   }
 
   return `${window.location.origin}${GOOGLE_AUTH_CALLBACK_PATH}`;
@@ -323,7 +428,7 @@ export const startGoogleAuth = async (input: {
     const response = await getGoogleAuthUrl();
 
     if (!response.authUrl) {
-      throw new Error("No authUrl received from server.");
+      throw new Error("Google 로그인 주소를 받아오지 못했습니다.");
     }
 
     window.location.assign(buildGoogleAuthorizeUrl(response.authUrl, context.state));
@@ -372,3 +477,9 @@ export const signupTeacher = (payload: TeacherSignupPayload) =>
 
 export const validateInviteCode = (payload: { inviteCode: string }) =>
   postJson<InviteValidationResponse>("/v1/auth/invite/validate", payload);
+
+export const refreshAuthSession = (refreshToken: string) =>
+  postJson<AuthSessionResponse>("/v1/auth/refresh", { refreshToken });
+
+export const logoutAuthSession = (refreshToken: string) =>
+  postJson<{ loggedOut: true }>("/v1/auth/logout", { refreshToken });

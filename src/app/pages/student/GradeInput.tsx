@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Breadcrumb, PageTitle } from "../../components/AppShell";
 import { Plus, X, ChevronDown, Save, CheckCircle } from "lucide-react";
+import { appPost } from "../../utils/appApi";
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 const EXAM_TABS = ["중간고사", "기말고사", "학기 최종 성적", "모의고사"] as const;
 type TabType = typeof EXAM_TABS[number];
 
 const SEMESTERS = ["2025년 1학기", "2025년 2학기", "2026년 1학기"];
+const MOCK_MONTHS = ["2025년 3월", "2025년 6월", "2025년 9월", "2025년 11월", "2026년 3월", "2026년 6월"];
 
 const SUNEUNG_SUBJECTS = [
   "국어", "수학", "영어", "한국사",
@@ -53,10 +55,6 @@ const EXAM_STATUS_STYLE: Record<ExamStatus, string> = {
   "확인 완료":      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
-// ── localStorage 키 ───────────────────────────────────────────────────────────
-const GRADE_SAVE_KEY     = "jinro_grade_data";
-const CUSTOM_SUBJECTS_KEY = "jinro_custom_subjects";
-const DEFAULT_NAMES       = ["국어", "수학", "영어", "한국사", "과학"];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function GradeInput() {
@@ -77,7 +75,8 @@ export function GradeInput() {
   const [selectedSuneung, setSelectedSuneung] = useState<string[]>([
     "국어", "수학", "영어", "한국사", "물리학Ⅰ", "화학Ⅰ",
   ]);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "success">("idle");
+  const [mockMonth, setMockMonth] = useState("2026년 3월");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
   const [saveError,  setSaveError]  = useState("");
 
   // ── 공통 헬퍼 ──────────────────────────────────────────────────────────────
@@ -156,7 +155,10 @@ export function GradeInput() {
   };
 
   // ── 저장 ───────────────────────────────────────────────────────────────────
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saveStatus === "saving") return;
+    setSaveError("");
+
     if (activeTab === "학기 최종 성적") {
       const emptyName = finalSubjects.find(s => !s.name.trim());
       if (emptyName) {
@@ -164,34 +166,80 @@ export function GradeInput() {
         setTimeout(() => setSaveError(""), 4000);
         return;
       }
-      // GradeTrend가 읽는 데이터 저장
-      const existing = JSON.parse(localStorage.getItem(GRADE_SAVE_KEY) || "{}");
-      existing[`${semester}_학기최종`] = {
-        semester, examType: "학기 최종 성적",
-        subjects: finalSubjects.map(s => ({ name: s.name, finalGrade: s.finalGrade, credit: s.credit, applied: s.applied })),
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(GRADE_SAVE_KEY, JSON.stringify(existing));
-
-      // 커스텀 과목 저장 (기본 과목 외)
-      const customNames = finalSubjects
-        .map(s => s.name.trim())
-        .filter(n => n && !DEFAULT_NAMES.includes(n));
-      localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(customNames));
+      const validSubjects = finalSubjects
+        .filter(s => s.name.trim() && s.finalGrade && parseFloat(s.finalGrade) > 0);
+      if (!validSubjects.length) {
+        setSaveError("저장할 성적이 없습니다. 등급을 입력해 주세요.");
+        setTimeout(() => setSaveError(""), 4000);
+        return;
+      }
+      setSaveStatus("saving");
+      try {
+        await appPost("/v1/semester-finals", {
+          semester,
+          subjects: validSubjects.map(s => ({
+            name: s.name.trim(),
+            finalGrade: parseFloat(s.finalGrade),
+            credit: parseInt(s.credit) || 2,
+            applied: s.applied,
+          })),
+        });
+        setSaveStatus("success");
+        setTimeout(() => setSaveStatus("idle"), 4000);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+        setSaveStatus("idle");
+      }
+    } else if (activeTab === "모의고사") {
+      const validSubjects = practiceSubjects.filter(s => s.name.trim() && (s.score || s.grade));
+      if (!validSubjects.length) {
+        setSaveError("저장할 모의고사 성적이 없습니다.");
+        setTimeout(() => setSaveError(""), 4000);
+        return;
+      }
+      setSaveStatus("saving");
+      try {
+        await appPost("/v1/mock-exams", {
+          semester: mockMonth,
+          subjects: validSubjects.map(s => ({
+            name: s.name.trim(),
+            ...(s.score ? { score: parseFloat(s.score) } : {}),
+            ...(s.grade ? { grade: parseFloat(s.grade) } : {}),
+          })),
+        });
+        setSaveStatus("success");
+        setTimeout(() => setSaveStatus("idle"), 4000);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+        setSaveStatus("idle");
+      }
     } else {
-      // 중간/기말/모의 → 단순 저장 (차트 미영향)
-      const existing = JSON.parse(localStorage.getItem(GRADE_SAVE_KEY) || "{}");
-      const tabKey = activeTab === "중간고사" ? "중간" : activeTab === "기말고사" ? "기말" : "모의";
-      existing[`${semester}_${tabKey}`] = {
-        semester, examType: activeTab,
-        subjects: activeTab === "모의고사" ? practiceSubjects : examSubjects,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(GRADE_SAVE_KEY, JSON.stringify(existing));
+      // 중간고사 / 기말고사
+      const validSubjects = examSubjects.filter(s => s.name.trim() && s.score);
+      if (!validSubjects.length) {
+        setSaveError("저장할 시험 성적이 없습니다. 점수를 입력해 주세요.");
+        setTimeout(() => setSaveError(""), 4000);
+        return;
+      }
+      setSaveStatus("saving");
+      try {
+        await appPost("/v1/grades/exams", {
+          semester,
+          examType: activeTab, // "중간고사" | "기말고사"
+          subjects: validSubjects.map(s => ({
+            name: s.name.trim(),
+            score: parseFloat(s.score),
+            status: s.status,
+            memo: s.memo,
+          })),
+        });
+        setSaveStatus("success");
+        setTimeout(() => setSaveStatus("idle"), 4000);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+        setSaveStatus("idle");
+      }
     }
-    setSaveError("");
-    setSaveStatus("success");
-    setTimeout(() => setSaveStatus("idle"), 4000);
   };
 
   // ── 요약 계산 ───────────────────────────────────────────────────────────────
@@ -216,6 +264,7 @@ export function GradeInput() {
 
   // ── 저장 버튼 label ─────────────────────────────────────────────────────────
   const saveBtnLabel =
+    saveStatus === "saving" ? "저장 중..." :
     saveStatus === "success" ? "저장 완료!" :
     activeTab === "학기 최종 성적" ? "등급 저장" : "저장하기";
 
@@ -233,8 +282,9 @@ export function GradeInput() {
         }
         action={
           <button
-            onClick={handleSave}
-            className={`flex items-center gap-2 px-4 h-9 rounded-xl text-sm transition-colors ${
+            onClick={() => void handleSave()}
+            disabled={saveStatus === "saving"}
+            className={`flex items-center gap-2 px-4 h-9 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
               saveStatus === "success"
                 ? "bg-emerald-500 text-white"
                 : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -255,6 +305,8 @@ export function GradeInput() {
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
             {activeTab === "학기 최종 성적"
               ? "학기 최종 성적이 저장되었습니다. 성적 변화 추이 차트에 반영됩니다."
+              : activeTab === "모의고사"
+              ? `${mockMonth} 모의고사 성적이 저장되었습니다.`
               : `${activeTab} 성적이 저장되었습니다.`}
           </p>
         </div>
@@ -268,13 +320,23 @@ export function GradeInput() {
       {/* 탭 컨트롤 */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="relative">
-          <select
-            className="h-9 pl-3.5 pr-8 rounded-xl border border-border bg-card text-foreground text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
-            value={semester}
-            onChange={e => setSemester(e.target.value)}
-          >
-            {SEMESTERS.map(s => <option key={s}>{s}</option>)}
-          </select>
+          {activeTab === "모의고사" ? (
+            <select
+              className="h-9 pl-3.5 pr-8 rounded-xl border border-border bg-card text-foreground text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
+              value={mockMonth}
+              onChange={e => setMockMonth(e.target.value)}
+            >
+              {MOCK_MONTHS.map(m => <option key={m}>{m}</option>)}
+            </select>
+          ) : (
+            <select
+              className="h-9 pl-3.5 pr-8 rounded-xl border border-border bg-card text-foreground text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
+              value={semester}
+              onChange={e => setSemester(e.target.value)}
+            >
+              {SEMESTERS.map(s => <option key={s}>{s}</option>)}
+            </select>
+          )}
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
         </div>
 

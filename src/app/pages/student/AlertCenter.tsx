@@ -1,36 +1,21 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Breadcrumb, PageTitle } from "../../components/AppShell";
-import { AlertCard, AlertItem } from "../../components/AlertCard";
-import { ALERTS } from "../../data/mock";
+import { AlertCard, type AlertItem } from "../../components/AlertCard";
 import { Bell, Check } from "lucide-react";
+import { useNotification } from "../../context/NotificationContext";
 
-const EXTRA_ALERTS: AlertItem[] = [
-  { id: 6, type: "warning", category: "성적", title: "영어 모의고사 3등급 이하", body: "최근 영어 모의고사 성적이 3등급 이하입니다. 집중적인 학습이 필요합니다.", time: "3일 전", read: false },
-  { id: 7, type: "info", category: "입시", title: "2026 수시 원서 접수 일정", body: "2026학년도 수시 원서 접수가 9월에 시작됩니다. 미리 준비하세요.", time: "1주일 전", read: true },
-  { id: 8, type: "success", category: "학습", title: "주간 목표 달성!", body: "이번 주 학습 목표 80%를 달성했습니다. 훌륭해요!", time: "1주일 전", read: true },
-];
-
-const ALL_ALERTS: AlertItem[] = [...ALERTS as AlertItem[], ...EXTRA_ALERTS];
+const toAlertItem = (item: AlertItem) => item;
 
 export function AlertCenter() {
-  const [alerts, setAlerts] = useState(ALL_ALERTS);
+  const { notifications, markRead, markAllRead, isLoading, error } = useNotification();
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "important">("all");
 
-  const markRead = (id: number) => {
-    setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, read: true } : a));
-  };
-
-  const markAllRead = () => {
-    setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
-  };
-
-  const unread = alerts.filter((a) => !a.read);
-  const important = alerts.filter((a) => a.type === "danger" || a.type === "warning");
+  const alerts = useMemo(() => notifications.map(toAlertItem), [notifications]);
+  const unread = alerts.filter((item) => !item.read);
+  const important = alerts.filter((item) => item.type === "danger" || item.type === "warning");
 
   const displayed =
-    activeTab === "unread" ? unread :
-    activeTab === "important" ? important :
-    alerts;
+    activeTab === "unread" ? unread : activeTab === "important" ? important : alerts;
 
   return (
     <div>
@@ -39,13 +24,15 @@ export function AlertCenter() {
         title="실시간 알림 센터"
         subtitle="성적, 학습, 상담, 입시 관련 알림을 확인하세요."
         action={
-          <button onClick={markAllRead} className="flex items-center gap-1.5 px-4 h-9 rounded-xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">
+          <button
+            onClick={() => void markAllRead()}
+            className="flex items-center gap-1.5 px-4 h-9 rounded-xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+          >
             <Check className="w-3.5 h-3.5" /> 모두 읽음 표시
           </button>
         }
       />
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-5">
         <div className="bg-card rounded-xl border border-border p-4 text-center">
           <p className="text-xl font-semibold text-foreground">{alerts.length}</p>
@@ -61,7 +48,6 @@ export function AlertCenter() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit mb-5">
         {(["all", "unread", "important"] as const).map((tab) => (
           <button
@@ -78,16 +64,22 @@ export function AlertCenter() {
         ))}
       </div>
 
-      {/* Alert list */}
+      {error && <p className="text-xs text-destructive mb-4">{error}</p>}
+
       <div className="space-y-3">
-        {displayed.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-card rounded-xl border border-border p-12 text-center">
+            <Bell className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">알림을 불러오고 있습니다.</p>
+          </div>
+        ) : displayed.length === 0 ? (
           <div className="bg-card rounded-xl border border-border p-12 text-center">
             <Bell className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">알림이 없습니다.</p>
           </div>
         ) : (
           displayed.map((alert) => (
-            <AlertCard key={alert.id} alert={alert} onMarkRead={markRead} />
+            <AlertCard key={alert.id} alert={alert} onMarkRead={(id) => void markRead(String(id))} />
           ))
         )}
       </div>

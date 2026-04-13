@@ -5,6 +5,7 @@ import { Info, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   consumeGoogleAuthError,
   getErrorMessage,
+  persistAuthSession,
   signupStudent,
   signupStudentWithGoogle,
   validateInviteCode
@@ -60,7 +61,7 @@ export function StudentSignup() {
     }
 
     setInviteCodeStatus("checking");
-    setInviteCodeMessage("Checking invite code...");
+    setInviteCodeMessage("초대 코드를 확인하고 있습니다...");
 
     try {
       const invite = await validateInviteCode({ inviteCode: normalizedInviteCode });
@@ -93,6 +94,7 @@ export function StudentSignup() {
         inviteCode: inviteCode.trim() ? inviteCode.trim().toUpperCase() : undefined
       });
 
+      persistAuthSession(session);
       navigate(session.nextPath || "/onboarding/1");
     } catch (error) {
       setSubmitError(getErrorMessage(error));
@@ -139,8 +141,8 @@ export function StudentSignup() {
 
   return (
     <AuthLayout
-      title="Student Sign Up"
-      subtitle="Create your account and continue to onboarding."
+      title="학생 회원가입"
+      subtitle="계정을 만들고 온보딩을 이어가세요."
     >
       <div className="space-y-4">
         <button
@@ -155,23 +157,23 @@ export function StudentSignup() {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
-          Continue with Google
+          Google로 계속하기
         </button>
 
         <div className="relative flex items-center gap-3">
           <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted-foreground">or</span>
+          <span className="text-xs text-muted-foreground">또는</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
         <div>
           <label className={labelClass}>
-            Name <span className="text-destructive">*</span>
+            이름 <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
             className={inputClass}
-            placeholder="Your name"
+            placeholder="이름을 입력하세요"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -179,7 +181,7 @@ export function StudentSignup() {
 
         <div>
           <label className={labelClass}>
-            Email <span className="text-destructive">*</span>
+            이메일 <span className="text-destructive">*</span>
           </label>
           <input
             type="email"
@@ -196,26 +198,26 @@ export function StudentSignup() {
           {emailInvalid && (
             <p className="text-xs text-destructive mt-1 flex items-center gap-1">
               <AlertCircle className="w-3 h-3 flex-shrink-0" />
-              Please enter a valid email address.
+              올바른 이메일 주소를 입력해 주세요.
             </p>
           )}
           {emailValid && (
             <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--primary)" }}>
               <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
-              Email format looks good.
+              이메일 형식이 올바릅니다.
             </p>
           )}
         </div>
 
         <div>
           <label className={labelClass}>
-            Password <span className="text-destructive">*</span>
+            비밀번호 <span className="text-destructive">*</span>
           </label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               className={inputClass + " pr-10"}
-              placeholder="At least 8 characters"
+              placeholder="8자 이상 입력하세요"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -228,19 +230,19 @@ export function StudentSignup() {
             </button>
           </div>
           {password.length > 0 && password.length < 8 && (
-            <p className="text-xs text-destructive mt-1">Password must be at least 8 characters.</p>
+            <p className="text-xs text-destructive mt-1">비밀번호는 8자 이상이어야 합니다.</p>
           )}
         </div>
 
         <div>
           <label className={labelClass}>
-            Confirm Password <span className="text-destructive">*</span>
+            비밀번호 확인 <span className="text-destructive">*</span>
           </label>
           <div className="relative">
             <input
               type={showPasswordConfirm ? "text" : "password"}
               className={inputClass + " pr-10" + (passwordMismatch ? " border-destructive" : "")}
-              placeholder="Re-enter your password"
+              placeholder="비밀번호를 다시 입력하세요"
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
             />
@@ -253,19 +255,19 @@ export function StudentSignup() {
             </button>
           </div>
           {passwordMismatch && (
-            <p className="text-xs text-destructive mt-1">Passwords do not match.</p>
+            <p className="text-xs text-destructive mt-1">비밀번호가 일치하지 않습니다.</p>
           )}
           {!passwordMismatch && passwordConfirm.length > 0 && password === passwordConfirm && (
             <p className="text-xs mt-1" style={{ color: "var(--primary)" }}>
-              Passwords match.
+              비밀번호가 일치합니다.
             </p>
           )}
         </div>
 
         <div>
           <label className={labelClass}>
-            Teacher Invite Code{" "}
-            <span className="text-muted-foreground/60 font-normal">(Optional)</span>
+            선생님 초대 코드{" "}
+            <span className="text-muted-foreground/60 font-normal">(선택)</span>
           </label>
           <input
             type="text"
@@ -303,7 +305,7 @@ export function StudentSignup() {
             <div className="flex items-start gap-1.5 mt-1.5 p-2.5 bg-secondary/50 rounded-lg">
               <Info className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                If your teacher gave you an invite code, enter it to connect your account to the correct classroom automatically.
+                선생님에게 받은 초대 코드가 있으면 입력해 주세요. 계정이 해당 학급과 자동으로 연결됩니다.
               </p>
             </div>
           )}
@@ -319,7 +321,7 @@ export function StudentSignup() {
             style={{ colorScheme: "light" }}
           />
           <label htmlFor="agree" className="text-sm text-muted-foreground leading-snug cursor-pointer">
-            I agree to the{" "}
+            아래 약관에 동의합니다.{" "}
             <span
               className="underline cursor-pointer hover:opacity-80"
               style={{ color: "var(--primary)" }}
@@ -328,9 +330,9 @@ export function StudentSignup() {
                 navigate("/terms");
               }}
             >
-              Terms of Service
+              서비스 이용약관
             </span>{" "}
-            and{" "}
+            및{" "}
             <span
               className="underline cursor-pointer hover:opacity-80"
               style={{ color: "var(--primary)" }}
@@ -339,7 +341,7 @@ export function StudentSignup() {
                 navigate("/privacy");
               }}
             >
-              Privacy Policy
+              개인정보처리방침
             </span>
             .
           </label>
@@ -354,28 +356,28 @@ export function StudentSignup() {
           disabled={!canSubmit}
           style={{ opacity: canSubmit ? 1 : 0.5 }}
         >
-          Create Student Account
+          학생 계정 만들기
         </button>
       </div>
 
       <p className="text-center text-sm text-muted-foreground mt-6">
-        Already have an account?{" "}
+        이미 계정이 있으신가요?{" "}
         <span
           className="cursor-pointer hover:underline"
           style={{ color: "var(--primary)" }}
           onClick={() => navigate("/login/student")}
         >
-          Log in
+          로그인
         </span>
       </p>
       <p className="text-center text-sm text-muted-foreground mt-2">
-        Are you a teacher?{" "}
+        선생님이신가요?{" "}
         <span
           className="cursor-pointer hover:underline"
           style={{ color: "var(--primary)" }}
           onClick={() => navigate("/signup/teacher")}
         >
-          Teacher sign up
+          교사 회원가입
         </span>
       </p>
     </AuthLayout>

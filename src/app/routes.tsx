@@ -60,7 +60,7 @@ export const router = createBrowserRouter([
   // Student routes
   {
     path: "/student",
-    element: <AppShell role="student" userName="김민준" schoolName="한빛고등학교" alertCount={3} />,
+    element: <AppShell role="student" />,
     children: [
       { path: "dashboard", Component: StudentDashboard },
       { path: "grades/input", Component: GradeInput },
@@ -81,11 +81,12 @@ export const router = createBrowserRouter([
   // Teacher routes
   {
     path: "/teacher",
-    element: <AppShell role="teacher" userName="박지영" schoolName="한빛고등학교" alertCount={4} />,
+    element: <AppShell role="teacher" />,
     children: [
       { path: "dashboard", Component: TeacherDashboard },
       { path: "students/list", Component: StudentList },
       { path: "students/detail", Component: StudentDetail },
+      { path: "students/:studentId", Component: StudentDetail },
       { path: "students/trend", Component: TeacherGradeTrend },
       { path: "students/completion", Component: CompletionStatus },
       { path: "alerts", Component: TeacherAlertCenter },

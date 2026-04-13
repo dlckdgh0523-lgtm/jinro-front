@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { Breadcrumb, PageTitle } from "../../components/AppShell";
 import { StatusBadge } from "../../components/StatusBadge";
-import { GraduationCap, ArrowRight, BookOpen, ChevronDown } from "lucide-react";
+import { GraduationCap, ArrowRight, Info } from "lucide-react";
 
 const RECOMMENDATIONS = [
   {
@@ -82,6 +82,15 @@ export function UniversityRecommendation() {
           </button>
         }
       />
+
+      {/* Sample data notice */}
+      <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 mb-5">
+        <Info className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+          아래 추천 결과는 <strong>샘플 데이터</strong>입니다. 실제 AI 추천 기능은 준비 중입니다.
+          정확한 입시 정보는 <button onClick={() => navigate("/student/career/admissions")} className="underline hover:no-underline">입시 데이터</button>에서 확인하세요.
+        </p>
+      </div>
 
       {/* Filter */}
       <div className="flex gap-2 mb-5">

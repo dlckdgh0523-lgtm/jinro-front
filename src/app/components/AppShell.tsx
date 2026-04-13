@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { NotificationProvider } from "../context/NotificationContext";
 import { StudyPlanProvider } from "../context/StudyPlanContext";
 import { NotificationToast } from "./NotificationToast";
+import { readAuthSession } from "../utils/authApi";
 
 interface AppShellProps {
   role: "student" | "teacher";
@@ -15,6 +16,9 @@ interface AppShellProps {
 
 export function AppShell({ role, userName, schoolName, alertCount }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const session = readAuthSession();
+  const resolvedUserName = session?.user.name || userName;
+  const resolvedSchoolName = session?.user.schoolName || schoolName;
 
   return (
     <NotificationProvider role={role}>
@@ -22,8 +26,8 @@ export function AppShell({ role, userName, schoolName, alertCount }: AppShellPro
         <div className="min-h-screen bg-background">
           <Header
             role={role}
-            userName={userName}
-            schoolName={schoolName}
+            userName={resolvedUserName}
+            schoolName={resolvedSchoolName}
             alertCount={alertCount}
             onMenuOpen={() => setSidebarOpen(true)}
           />

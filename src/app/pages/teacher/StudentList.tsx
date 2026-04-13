@@ -1,17 +1,50 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Breadcrumb, PageTitle } from "../../components/AppShell";
 import { StatusBadge } from "../../components/StatusBadge";
-import { STUDENTS } from "../../data/mock";
-import { Search, Filter, ChevronDown } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
+import { appGet } from "../../utils/appApi";
+
+type StudentCard = {
+  id: string;
+  name: string;
+  grade: string;
+  track: string;
+  gpa: number;
+  goal: string;
+  status: "danger" | "warning" | "normal";
+  completion: number;
+  counselNeeded: boolean;
+};
 
 export function StudentList() {
   const navigate = useNavigate();
+  const [students, setStudents] = useState<StudentCard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("전체");
   const [trackFilter, setTrackFilter] = useState("전체");
 
-  const filtered = STUDENTS.filter((s) => {
+  useEffect(() => {
+    let active = true;
+    const fetch = async () => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const response = await appGet<StudentCard[]>("/v1/students");
+        if (active) setStudents(response);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "학생 목록을 불러오지 못했습니다.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    void fetch();
+    return () => { active = false; };
+  }, []);
+
+  const filtered = students.filter((s) => {
     if (search && !s.name.includes(search) && !s.goal.includes(search)) return false;
     if (statusFilter !== "전체") {
       if (statusFilter === "위험" && s.status !== "danger") return false;
@@ -25,9 +58,13 @@ export function StudentList() {
   return (
     <div>
       <Breadcrumb items={[{ label: "학생 관리" }, { label: "학생 목록" }]} />
-      <PageTitle title="학생 목록" subtitle={`${STUDENTS.length}명의 학생을 관리하고 있습니다.`} />
+      <PageTitle
+        title="학생 목록"
+        subtitle={isLoading ? "불러오는 중..." : `${students.length}명의 학생을 관리하고 있습니다.`}
+      />
 
-      {/* Filters */}
+      {error && <p className="text-xs text-destructive mb-4">{error}</p>}
+
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="relative flex-1 min-w-40">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -65,7 +102,6 @@ export function StudentList() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -81,51 +117,71 @@ export function StudentList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((s) => (
-                <tr
-                  key={s.id}
-                  className="hover:bg-secondary/20 transition-colors cursor-pointer"
-                  onClick={() => navigate("/teacher/students/detail")}
-                >
-                  <td className="px-5 py-3.5">
-                    <p className="text-sm font-medium text-foreground">{s.name}</p>
-                    <p className="text-xs text-muted-foreground">{s.grade} · {s.track}</p>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <StatusBadge variant={s.status as any} label={s.status === "danger" ? "위험" : s.status === "warning" ? "주의" : "정상"} />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <p className="text-xs text-foreground">{s.goal}</p>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <span className={`text-sm font-semibold ${
-                      s.gpa <= 2 ? "text-emerald-600 dark:text-emerald-400" :
-                      s.gpa <= 3 ? "text-amber-600 dark:text-amber-400" :
-                      "text-red-500"
-                    }`}>{s.gpa}등급</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className={`h-full rounded-full ${
-                          s.completion >= 70 ? "bg-emerald-500" :
-                          s.completion >= 50 ? "bg-amber-400" : "bg-red-400"
-                        }`} style={{ width: `${s.completion}%` }} />
-                      </div>
-                      <span className="text-xs text-muted-foreground w-8">{s.completion}%</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    {s.counselNeeded
-                      ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">필요</span>
-                      : <span className="text-xs text-muted-foreground">-</span>
-                    }
-                  </td>
-                  <td className="pr-4 text-center">
-                    <button className="text-xs text-primary hover:underline">상세</button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                    학생 목록을 불러오고 있습니다.
                   </td>
                 </tr>
-              ))}
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                    {students.length === 0 ? "연결된 학생이 없습니다." : "검색 결과가 없습니다."}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="hover:bg-secondary/20 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/teacher/students/${s.id}`)}
+                  >
+                    <td className="px-5 py-3.5">
+                      <p className="text-sm font-medium text-foreground">{s.name}</p>
+                      <p className="text-xs text-muted-foreground">{s.grade} · {s.track}</p>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <StatusBadge
+                        variant={s.status}
+                        label={s.status === "danger" ? "위험" : s.status === "warning" ? "주의" : "정상"}
+                      />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-xs text-foreground">{s.goal}</p>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <span className={`text-sm font-semibold ${
+                        s.gpa <= 2 ? "text-emerald-600 dark:text-emerald-400" :
+                        s.gpa <= 3 ? "text-amber-600 dark:text-amber-400" :
+                        "text-red-500"
+                      }`}>{s.gpa > 0 ? `${s.gpa}등급` : "-"}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              s.completion >= 70 ? "bg-emerald-500" :
+                              s.completion >= 50 ? "bg-amber-400" : "bg-red-400"
+                            }`}
+                            style={{ width: `${s.completion}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground w-8">{s.completion}%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      {s.counselNeeded
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">필요</span>
+                        : <span className="text-xs text-muted-foreground">-</span>
+                      }
+                    </td>
+                    <td className="pr-4 text-center">
+                      <button className="text-xs text-primary hover:underline">상세</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -2,6 +2,7 @@ import React from "react";
 import { Bell, Sun, Moon, ChevronDown, User, LogOut, Menu } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useTheme } from "../context/ThemeContext";
+import { useNotification } from "../context/NotificationContext";
 
 interface HeaderProps {
   role: "student" | "teacher";
@@ -19,8 +20,11 @@ export function Header({
   onMenuOpen,
 }: HeaderProps) {
   const { dark, toggleDark } = useTheme();
+  const { notifications } = useNotification();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = React.useState(false);
+  const unreadCount = notifications.filter((item) => !item.read).length;
+  const resolvedAlertCount = unreadCount > 0 ? unreadCount : alertCount;
 
   const alertPath = role === "student" ? "/student/study/alerts" : "/teacher/alerts";
 
@@ -57,7 +61,7 @@ export function Header({
         className="relative w-9 h-9 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
       >
         <Bell className="w-4 h-4" />
-        {alertCount > 0 && (
+        {resolvedAlertCount > 0 && (
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
         )}
       </button>

@@ -5,23 +5,24 @@ import { Search, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import {
   consumeGoogleAuthError,
   getErrorMessage,
+  persistAuthSession,
   signupTeacher,
   signupTeacherWithGoogle
 } from "../../utils/authApi";
 
 const SAMPLE_SCHOOLS = [
-  "Seoul High School",
-  "Gangnam High School",
-  "Mapo High School",
-  "Han River High School",
-  "Jinro Academy",
-  "Namsan High School",
-  "Skyline High School",
-  "Central High School"
+  "서울고등학교",
+  "강남고등학교",
+  "마포고등학교",
+  "한강고등학교",
+  "진로아카데미",
+  "남산고등학교",
+  "스카이라인고등학교",
+  "중앙고등학교"
 ];
 
-const GRADES = ["1st Grade", "2nd Grade", "3rd Grade"];
-const CLASS_NUMS = Array.from({ length: 10 }, (_, i) => `${i + 1} Class`);
+const GRADES = ["1학년", "2학년", "3학년"];
+const CLASS_NUMS = Array.from({ length: 10 }, (_, i) => `${i + 1}반`);
 const TEACHER_SIGNUP_PATH = "/signup/teacher";
 
 const GoogleIcon = () => (
@@ -143,6 +144,7 @@ export function TeacherSignup() {
         subject: subject.trim() || undefined
       });
 
+      persistAuthSession(session);
       navigate(session.nextPath || "/teacher/dashboard");
     } catch (error) {
       setSubmitError(getErrorMessage(error));
@@ -153,8 +155,8 @@ export function TeacherSignup() {
 
   return (
     <AuthLayout
-      title="Teacher Sign Up"
-      subtitle="Create your teacher account and manage your classroom."
+      title="교사 회원가입"
+      subtitle="교사 계정을 만들고 학급을 관리하세요."
     >
       <div className="flex items-center gap-2 mb-6">
         <div className="flex items-center gap-2">
@@ -167,9 +169,9 @@ export function TeacherSignup() {
           >
             {step > 1 ? <CheckCircle2 className="w-4 h-4" /> : "1"}
           </div>
-          <span className={`text-xs ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>
-            Terms
-          </span>
+            <span className={`text-xs ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>
+              약관 동의
+            </span>
         </div>
         <div className="flex-1 h-px bg-border mx-2" />
         <div className="flex items-center gap-2">
@@ -182,9 +184,9 @@ export function TeacherSignup() {
           >
             2
           </div>
-          <span className={`text-xs ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>
-            Details
-          </span>
+            <span className={`text-xs ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>
+              정보 입력
+            </span>
         </div>
       </div>
 
@@ -194,17 +196,17 @@ export function TeacherSignup() {
         <div className="space-y-4">
           <button className={secondaryBtn} type="button" onClick={handleGoogleSignup} disabled={isSubmitting}>
             <GoogleIcon />
-            Continue with Google
+            Google로 계속하기
           </button>
 
           <div className="relative flex items-center gap-3">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">or continue with email</span>
+            <span className="text-xs text-muted-foreground">또는 이메일로 계속하기</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
           <div className="p-4 bg-secondary/40 rounded-xl border border-border space-y-3">
-            <p className="text-sm text-foreground font-medium">Agreement</p>
+            <p className="text-sm text-foreground font-medium">약관 동의</p>
             <div className="flex items-start gap-2.5">
               <input
                 type="checkbox"
@@ -218,7 +220,7 @@ export function TeacherSignup() {
                 htmlFor="agree"
                 className="text-sm text-muted-foreground leading-snug cursor-pointer"
               >
-                I agree to the{" "}
+                아래 약관에 동의합니다.{" "}
                 <span
                   className="underline hover:opacity-80"
                   style={{ color: "var(--primary)" }}
@@ -227,9 +229,9 @@ export function TeacherSignup() {
                     navigate("/terms");
                   }}
                 >
-                  Terms of Service
+                  서비스 이용약관
                 </span>{" "}
-                and{" "}
+                및{" "}
                 <span
                   className="underline hover:opacity-80"
                   style={{ color: "var(--primary)" }}
@@ -238,9 +240,9 @@ export function TeacherSignup() {
                     navigate("/privacy");
                   }}
                 >
-                  Privacy Policy
+                  개인정보처리방침
                 </span>
-                . <span className="text-destructive">(Required)</span>
+                . <span className="text-destructive">(필수)</span>
               </label>
             </div>
           </div>
@@ -252,7 +254,7 @@ export function TeacherSignup() {
             disabled={!step1CanProceed}
             style={{ opacity: step1CanProceed ? 1 : 0.5 }}
           >
-            Continue with Email
+            이메일로 계속하기
           </button>
         </div>
       )}
@@ -261,13 +263,13 @@ export function TeacherSignup() {
         <div className="space-y-4">
           <div>
             <label className={labelClass}>
-              School <span className="text-destructive">*</span>
+              학교 <span className="text-destructive">*</span>
             </label>
             <div className="relative">
               <input
                 type="text"
                 className={inputClass + " pr-10"}
-                placeholder="Search school"
+                placeholder="학교명을 검색하세요"
                 value={schoolSearch}
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
@@ -295,23 +297,23 @@ export function TeacherSignup() {
             )}
             {selectedSchool ? (
               <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: "var(--primary)" }}>
-                <CheckCircle2 className="w-3 h-3" /> {selectedSchool} selected
+                <CheckCircle2 className="w-3 h-3" /> {selectedSchool} 선택됨
               </p>
             ) : (
               <p className="text-xs text-muted-foreground mt-1.5">
-                Search and choose your school.
+                학교를 검색하고 선택해 주세요.
               </p>
             )}
           </div>
 
           <div>
             <label className={labelClass}>
-              Name <span className="text-destructive">*</span>
+              이름 <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
               className={inputClass}
-              placeholder="Your name"
+              placeholder="이름을 입력하세요"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -319,7 +321,7 @@ export function TeacherSignup() {
 
           <div>
             <label className={labelClass}>
-              Email <span className="text-destructive">*</span>
+              이메일 <span className="text-destructive">*</span>
             </label>
             <input
               type="email"
@@ -332,13 +334,13 @@ export function TeacherSignup() {
 
           <div>
             <label className={labelClass}>
-              Password <span className="text-destructive">*</span>
+              비밀번호 <span className="text-destructive">*</span>
             </label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 className={inputClass + " pr-10"}
-                placeholder="At least 8 characters"
+                placeholder="8자 이상 입력하세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -351,19 +353,19 @@ export function TeacherSignup() {
               </button>
             </div>
             {password.length > 0 && password.length < 8 && (
-              <p className="text-xs text-destructive mt-1">Password must be at least 8 characters.</p>
+              <p className="text-xs text-destructive mt-1">비밀번호는 8자 이상이어야 합니다.</p>
             )}
           </div>
 
           <div>
             <label className={labelClass}>
-              Confirm Password <span className="text-destructive">*</span>
+              비밀번호 확인 <span className="text-destructive">*</span>
             </label>
             <div className="relative">
               <input
                 type={showPasswordConfirm ? "text" : "password"}
                 className={inputClass + " pr-10" + (passwordMismatch ? " border-destructive" : "")}
-                placeholder="Re-enter your password"
+                placeholder="비밀번호를 다시 입력하세요"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
               />
@@ -376,11 +378,11 @@ export function TeacherSignup() {
               </button>
             </div>
             {passwordMismatch && (
-              <p className="text-xs text-destructive mt-1">Passwords do not match.</p>
+              <p className="text-xs text-destructive mt-1">비밀번호가 일치하지 않습니다.</p>
             )}
             {!passwordMismatch && passwordConfirm.length > 0 && password === passwordConfirm && (
               <p className="text-xs mt-1" style={{ color: "var(--primary)" }}>
-                Passwords match.
+                비밀번호가 일치합니다.
               </p>
             )}
           </div>
@@ -388,14 +390,14 @@ export function TeacherSignup() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>
-                Grade <span className="text-destructive">*</span>
+                학년 <span className="text-destructive">*</span>
               </label>
               <select
                 className={inputClass + " cursor-pointer"}
                 value={grade}
                 onChange={(e) => setGrade(e.target.value)}
               >
-                <option value="">Select grade</option>
+                <option value="">학년 선택</option>
                 {GRADES.map((gradeOption) => (
                   <option key={gradeOption} value={gradeOption}>
                     {gradeOption}
@@ -405,14 +407,14 @@ export function TeacherSignup() {
             </div>
             <div>
               <label className={labelClass}>
-                Class <span className="text-destructive">*</span>
+                반 <span className="text-destructive">*</span>
               </label>
               <select
                 className={inputClass + " cursor-pointer"}
                 value={classNum}
                 onChange={(e) => setClassNum(e.target.value)}
               >
-                <option value="">Select class</option>
+                <option value="">반 선택</option>
                 {CLASS_NUMS.map((classOption) => (
                   <option key={classOption} value={classOption}>
                     {classOption}
@@ -424,12 +426,12 @@ export function TeacherSignup() {
 
           <div>
             <label className={labelClass}>
-              Subject <span className="text-muted-foreground/60 font-normal">(Optional)</span>
+              담당 과목 <span className="text-muted-foreground/60 font-normal">(선택)</span>
             </label>
             <input
               type="text"
               className={inputClass}
-              placeholder="Example: Math, English"
+              placeholder="예: 수학, 영어"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
             />
@@ -441,7 +443,7 @@ export function TeacherSignup() {
               className="flex-1 h-11 rounded-xl border border-border bg-card text-foreground text-sm hover:bg-secondary transition-colors"
               onClick={handleBack}
             >
-              Back
+              이전
             </button>
             <button
               type="button"
@@ -450,30 +452,30 @@ export function TeacherSignup() {
               disabled={!step2CanSubmit}
               style={{ opacity: step2CanSubmit ? 1 : 0.5 }}
             >
-              Create Teacher Account
+              교사 계정 만들기
             </button>
           </div>
         </div>
       )}
 
       <p className="text-center text-sm text-muted-foreground mt-6">
-        Already have an account?{" "}
+        이미 계정이 있으신가요?{" "}
         <span
           className="cursor-pointer hover:underline"
           style={{ color: "var(--primary)" }}
           onClick={() => navigate("/login/teacher")}
         >
-          Log in
+          로그인
         </span>
       </p>
       <p className="text-center text-sm text-muted-foreground mt-2">
-        Are you a student?{" "}
+        학생이신가요?{" "}
         <span
           className="cursor-pointer hover:underline"
           style={{ color: "var(--primary)" }}
           onClick={() => navigate("/signup/student")}
         >
-          Student sign up
+          학생 회원가입
         </span>
       </p>
     </AuthLayout>
